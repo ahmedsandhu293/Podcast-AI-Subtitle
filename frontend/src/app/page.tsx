@@ -1,77 +1,87 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { HeroSection } from "@/components/custom/HeroSection";
+import { FeatureSection } from "@/components/custom/FeatureSection";
+import { getHomePageData } from "@/data/loaders";
 
-interface StrapiAttributes {
-  title: string;
-  description: string;
-}
+type Image = {
+  id: number;
+  url: string;
+  alternativeText: string | null;
+};
 
-interface StrapiData {
-  data: {
-    attributes: StrapiAttributes;
-  };
-}
+type Link = {
+  id: number;
+  url: string;
+  text: string;
+};
 
-async function getStrapiData(path: string): Promise<StrapiData | null> {
-  const baseURL = "http://localhost:1337";
-  try {
-    const response = await fetch(baseURL + path);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data: StrapiData = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Fetching error:", error);
-    return null;
+type Block = {
+  id: number;
+  __component: string;
+  heading: string;
+  subHeading: string;
+  image: Image;
+  link: Link;
+};
+
+type StrapiResponse = {
+  blocks: Block[];
+};
+
+type FlattenedStrapiResponse = {
+  blocks: Block[];
+};
+function blockRenderer(block: any) {
+  switch (block.__component) {
+    case "layout.hero-section":
+      return <HeroSection key={block.id} data={block} />;
+    case "layout.features-section":
+      return <FeatureSection key={block.id} data={block} />;
+    default:
+      return null;
   }
 }
 
 const Home: React.FC = () => {
-  const [strapiData, setStrapiData] = useState<StrapiData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [strapiData, setStrapiData] = useState<FlattenedStrapiResponse | null>(
+    null
+  );
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      const data = await getStrapiData("/api/home-page");
+      const data = await getHomePageData();
       if (data) {
         setStrapiData(data);
       } else {
-        setError("Failed to fetch data");
+        setError("Failed to load data");
       }
       setLoading(false);
     }
+
     fetchData();
   }, []);
 
   if (loading) {
-    return <p>Loading...</p>;
+    return <div>Loading...</div>;
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return <div>{error}</div>;
   }
 
-  if (!strapiData || !strapiData.data) {
-    return (
-      <main className="container mx-auto py-6">
-        <p>Error loading data</p>
-      </main>
-    );
+  if (!strapiData) {
+    return <div>No data available</div>;
   }
 
-  const { title, description } = strapiData.data.attributes;
+  const { blocks } = strapiData;
 
-  return (
-    <main className="container mx-auto py-6">
-      <h1>{title}</h1>
-      <p>{description}</p>
-      <Button>Hello</Button>
-    </main>
-  );
+  if (!blocks) return <p>No sections found</p>;
+
+  return <main>{blocks.map(blockRenderer)}</main>;
 };
 
 export default Home;

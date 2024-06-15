@@ -1,10 +1,11 @@
 import qs from "qs";
 import { flattenAttributes, getStrapiURL } from "@/lib/utils";
-
+import { getAuthToken } from "./services/get-token";
 const baseUrl = getStrapiURL();
 
 async function fetchData(url: string) {
-  const authToken = null; // Implement this later with getAuthToken()
+  const authToken = await getAuthToken();
+
   const headers = {
     method: "GET",
     headers: {
@@ -15,14 +16,11 @@ async function fetchData(url: string) {
 
   try {
     const response = await fetch(url, authToken ? headers : {});
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
     const data = await response.json();
     return flattenAttributes(data);
   } catch (error) {
     console.error("Error fetching data:", error);
-    throw error; // Rethrow the error to handle it elsewhere
+    throw error;
   }
 }
 
@@ -82,4 +80,27 @@ export async function getGlobalPageMetadata() {
   });
 
   return await fetchData(url.href);
+}
+export async function getSummaries(queryString: string, currentPage: number) {
+  const PAGE_SIZE = 4;
+
+  const query = qs.stringify({
+    sort: ["createdAt:desc"],
+    filters: {
+      $or: [
+        { title: { $containsi: queryString } },
+        { summary: { $containsi: queryString } },
+      ],
+    },
+    pagination: {
+      pageSize: PAGE_SIZE,
+      page: currentPage,
+    },
+  });
+  const url = new URL("/api/summaries", baseUrl);
+  url.search = query;
+  return fetchData(url.href);
+}
+export async function getSummaryById(summaryId: string) {
+  return fetchData(`${baseUrl}/api/summaries/${summaryId}`);
 }
